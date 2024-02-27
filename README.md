@@ -1,6 +1,8 @@
 # Statistic-project
 Analysis about cardiovascular disease
 
+Three other young people, mentioned in the project presentation, contributed to the project.
+
 Our project is an investigation conducted on the possible existing correlations between several life-habits or biometric parameters and the occurrence of cardiovascular diseases. The chosen dataset contains 17 variables about 68k patients.
 For each patient we know its sex, height, weight, age and if it smokes, drinks or does physical activity. We have some biometric parameters such as blood pressure measurements, cholesterol and glucose levels and whether or not it developed a cardiovascular disease. 
 We first explored the parameters regarding blood composition such as cholesterol and glucose, represented by random variables assuming 3 values (1,2,3)
