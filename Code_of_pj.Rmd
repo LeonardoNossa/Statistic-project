@@ -1,0 +1,1870 @@
+---
+title: "Statistics project on cardiovascular disease"
+author: "Leonardo Nossa"
+date: "`r Sys.Date()`"
+output: 
+  revealjs::revealjs_presentation:
+    transition: concave
+    self_contained: false
+    reveal_options:
+      slideNumber: true
+    highlight: default
+    theme: default
+    center: true
+    mathjax: NULL
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r libraries, include = FALSE}
+library(psych)
+library(dplyr)
+library(plyr)
+library(ggplot2)
+library(corrplot)
+library(multcomp)
+library(rpivotTable)
+library(e1071)
+library(rpart)
+library(rpart.plot)
+library(ggdist)
+library(kableExtra)
+library(ggpubr)
+library(cowplot)
+library(grid)
+library(ggpmisc)
+library(plotly)
+library(ggimage)
+
+```
+
+```{r Dataset of cardio disease, include = FALSE}
+# Read and watch the file/dataset, option in windows and macos cause work on different pc
+
+# Mac OS 
+Dataset = read.csv("/Users/leonardonossa/Desktop/Laboratory of statistics/Statistic project/cardio_data_processed.csv", header = TRUE)
+# Windows Dataset = read.csv("/Statistic project/cardio_data_processed.csv", header = TRUE)
+
+```
+
+
+```{r Analysis about cholesterol and glucose, echo=FALSE, warning=FALSE}
+Dataset$cholesterol = as.factor(Dataset$cholesterol)
+colnames(Dataset)[8] = "Cholesterol_levels"
+
+#creation of a boxplot for cholesterol levels to see if there is correlation with the weight
+Cholesterol_plot = ggplot(Dataset, aes(x = Cholesterol_levels, y = weight)) +
+ 
+  geom_boxplot(aes(fill = Cholesterol_levels),
+               outlier.alpha = 0.2,
+               show.legend = FALSE) +
+  
+  stat_summary(fun.y=mean, geom="point", shape=23, size=2, color="black", fill="white") +
+  
+  scale_fill_brewer(palette = "BuPu") +
+  
+  theme_classic() +
+  
+  theme(legend.background = element_rect(fill = "white", colour = "black"),
+        legend.title = element_text(
+          colour = "black",
+          face = "bold",
+          size = 12))
+
+Dataset$gluc = as.factor(Dataset$gluc)
+colnames(Dataset)[9] = "Glucose_levels"
+
+#creation of a boxplot for glucose levels to see if there is correlation with the weight
+Glucose_plot = ggplot(Dataset, aes(x = Glucose_levels, y = weight)) +
+  
+  geom_boxplot(aes(fill =Glucose_levels),
+               outlier.alpha = 0.2,
+               show.legend = FALSE) +
+  
+  stat_summary(fun.y = mean, geom = "point", shape=23, size = 2, color ="black", fill="white") +
+  
+  scale_fill_brewer(palette = "BuPu") +
+  
+  theme_classic() +
+  
+  theme(legend.background = element_rect(fill = "white", colour = "black"),
+        legend.title = element_text(
+          colour = "black",
+          face = "bold",
+          size = 12))
+
+```
+
+##
+```{r , echo=FALSE}
+Cholesterol_plot 
+```
+
+##
+```{r , echo=FALSE}
+Glucose_plot  
+```
+
+```{r Analysis for cholesterol correlation and analysis for glucose correlation, echo=FALSE}
+Cholesterol_lv1 = subset(Dataset, Cholesterol_levels == 1)
+Cholesterol_lv2 = subset(Dataset,Cholesterol_levels == 2)
+Cholesterol_lv3 = subset(Dataset,Cholesterol_levels == 3)
+
+Dis_lv1 = subset(Cholesterol_lv1, cardio == 1)
+Perc_Dis_lv1 = round(nrow(Dis_lv1) / nrow(Cholesterol_lv1) * 100,3)
+mean_weight = round(mean(Cholesterol_lv1$weight),3)
+mean_BMI = round(mean(Cholesterol_lv1$bmi),3)
+
+Dis_lv2 = subset(Cholesterol_lv2, cardio == 1)
+Perc_Dis_lv2 = round(nrow(Dis_lv2) / nrow(Cholesterol_lv2) * 100,3)
+mean_weight2 = round(mean(Cholesterol_lv2$weight),3)
+mean_BMI2 = round(mean(Cholesterol_lv2$bmi),3)
+
+Dis_lv3 = subset(Cholesterol_lv3, cardio == 1)
+Perc_Dis_lv3 = round(nrow(Dis_lv3) / nrow(Cholesterol_lv3) * 100,3)
+mean_weight3 = round(mean(Cholesterol_lv3$weight),3)
+mean_BMI3 = round(mean(Cholesterol_lv3$bmi),3)
+
+Corr_data = data.frame(Perc_ill = c(Perc_Dis_lv1,Perc_Dis_lv2,Perc_Dis_lv3), Weight = c(mean_weight, mean_weight2, mean_weight3), BMI = c(mean_BMI, mean_BMI2, mean_BMI3))
+rownames(Corr_data) = c("Normal cholesterol level","Above normal cholesterol level","Well above normal cholesterol level")
+
+Corr_matrix = kbl(Corr_data,align = "c") %>%             
+  kable_material()%>%  
+  column_spec(2, color = "black", background = ifelse(Corr_data$Perc_ill == 43.475, "#ffbfaa","")) %>% 
+  column_spec(2, color = "black", background = ifelse(Corr_data$Perc_ill == 59.515, "#ff7b5a","")) %>% 
+  column_spec(2, color = "black", background = ifelse(Corr_data$Perc_ill == 76.142, "#d11507",""))
+
+Glucose_lv1 = subset(Dataset, Glucose_levels == 1)
+Glucose_lv2 = subset(Dataset, Glucose_levels == 2)
+Glucose_lv3 = subset(Dataset, Glucose_levels == 3)
+
+DIS_lv1 = subset(Glucose_lv1, cardio == 1)
+Perc_DIS_lv1 = round(nrow(DIS_lv1) / nrow(Glucose_lv1) * 100,3)
+MEAN_weight = round(mean(Glucose_lv1$weight),3)
+MEAN_BMI = round(mean(Glucose_lv1$bmi),3)
+
+DIS_lv2 = subset(Glucose_lv2, cardio == 1)
+Perc_DIS_lv2 = round(nrow(DIS_lv2) / nrow(Glucose_lv2) * 100,3)
+MEAN_weight2 = round(mean(Glucose_lv2$weight),3)
+MEAN_BMI2 = round(mean(Glucose_lv2$bmi),3)
+
+DIS_lv3 = subset(Glucose_lv3, cardio == 1)
+Perc_DIS_lv3 = round(nrow(DIS_lv3) / nrow(Glucose_lv3) * 100,3)
+MEAN_weight3 = round(mean(Glucose_lv3$weight),3)
+MEAN_BMI3 = round(mean(Glucose_lv3$bmi),3)
+
+CORR_data = data.frame(Perc_ill = c(Perc_DIS_lv1,Perc_DIS_lv2,Perc_DIS_lv3), Weight = c(MEAN_weight, MEAN_weight2, MEAN_weight3), BMI = c(MEAN_BMI, MEAN_BMI2, MEAN_BMI3))
+rownames(CORR_data) = c("Normal glucose level","Above normal glucose level","Well above normal glucose level")
+
+CORR_matrix = kbl(CORR_data,align = "c") %>%             
+  kable_material()%>%  
+  column_spec(2, color = "black", background = ifelse(CORR_data$Perc_ill == 47.478, "#ffbfaa","")) %>% 
+  column_spec(2, color = "black", background = ifelse(CORR_data$Perc_ill == 58.623, "#ff7b5a","")) %>% 
+  column_spec(2, color = "black", background = ifelse(CORR_data$Perc_ill == 61.622, "#d11507",""))
+
+Chol_1_M = subset(Dataset, Cholesterol_levels == 1 & gender == 2)
+Chol_1_F = subset(Dataset, Cholesterol_levels == 1 & gender == 1)
+Chol_2_M = subset(Dataset, Cholesterol_levels == 2 & gender == 2)
+Chol_2_F = subset(Dataset, Cholesterol_levels == 2 & gender == 1)
+Chol_3_M = subset(Dataset, Cholesterol_levels == 3 & gender == 2)
+Chol_3_F = subset(Dataset, Cholesterol_levels == 3 & gender == 1)
+
+Chol_1_M_ill = subset(Chol_1_M, cardio == 1)
+Chol_1_F_ill = subset(Chol_1_F, cardio == 1)
+Chol_2_M_ill = subset(Chol_2_M, cardio == 1)
+Chol_2_F_ill = subset(Chol_2_F, cardio == 1)
+Chol_3_M_ill = subset(Chol_3_M, cardio == 1)
+Chol_3_F_ill = subset(Chol_3_F, cardio == 1)
+
+perc1_chol_M = nrow(Chol_1_M_ill)/nrow(Chol_1_M) * 100
+perc1_chol_F = nrow(Chol_1_F_ill)/nrow(Chol_1_F) * 100
+perc2_chol_M = nrow(Chol_2_M_ill)/nrow(Chol_2_M) * 100
+perc2_chol_F = nrow(Chol_2_F_ill)/nrow(Chol_2_F) * 100
+perc3_chol_M = nrow(Chol_3_M_ill)/nrow(Chol_3_M) * 100
+perc3_chol_F = nrow(Chol_3_F_ill)/nrow(Chol_3_F) * 100
+
+x_axis = c(1,2,3)
+vect_M = c(perc1_chol_M,perc2_chol_M,perc3_chol_M)
+vect_M=as.data.frame(vect_M)
+vect_M$Gender="M"
+vect_M=cbind(vect_M, x_axis)
+colnames(vect_M)[1]="Vect"
+
+vect_F = c(perc1_chol_F,perc2_chol_F,perc3_chol_F)
+vect_F=as.data.frame(vect_F)
+vect_F$Gender="F"
+vect_F=cbind(vect_F, x_axis)
+colnames(vect_F)[1]="Vect"
+
+data1 = rbind(vect_M, vect_F)
+
+CH_corr_FILL = ggplot(data1, aes( x = x_axis, y = Vect, color = Gender )) +  
+  
+  geom_line(show.legend = FALSE) +
+  
+  geom_point(show.legend = FALSE) +
+  
+  scale_color_manual(values=c('M' = 'blue', 'F' = 'red')) +  
+  
+  xlab('Cholesterol Levels') +  
+  
+  ylab('% ill') +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 80,                                                   
+            label="(A)",
+            color="black",
+            size = 1.5) +
+  
+  theme_classic() 
+
+age_split = split(Dataset, cut(Dataset$age_years, c(29, 34, 39, 44, 49, 54,59, 64), include.lowest = TRUE))
+
+split1 = data.frame(age_split[1]) 
+split2 = data.frame(age_split[2]) 
+split3 = data.frame(age_split[3])
+split4 = data.frame(age_split[4])
+split5 = data.frame(age_split[5])
+split6 = data.frame(age_split[6])
+split7 = data.frame(age_split[7])
+
+# Here the sample is particular but is correct cause they are not ill, so not rapresentable
+Chol_1_M_S1= subset(split1, X.29.34..Cholesterol_levels == 1 & X.29.34..gender == 2)
+Chol_1_F_S1= subset(split1, X.29.34..Cholesterol_levels == 1 & X.29.34..gender== 1)
+
+Chol_1_M_S1_ill = subset(Chol_1_M_S1, X.29.34..cardio == 1)
+Chol_1_F_S1_ill = subset(Chol_1_F_S1, X.29.34..cardio == 1)
+
+perc1_chol_M_S1 = nrow(Chol_1_M_S1_ill)/nrow(Chol_1_M_S1) * 100
+perc1_chol_F_S1= nrow(Chol_1_F_S1_ill)/nrow(Chol_1_F_S1) * 100
+
+# Second range of age
+Chol_1_M_S2= subset(split2, X.34.39..Cholesterol_levels == 1 & X.34.39..gender == 2)
+Chol_1_F_S2= subset(split2, X.34.39..Cholesterol_levels == 1 & X.34.39..gender== 1)
+Chol_2_M_S2= subset(split2, X.34.39..Cholesterol_levels == 2 & X.34.39..gender== 2)
+Chol_2_F_S2= subset(split2, X.34.39..Cholesterol_levels == 2 & X.34.39..gender== 1)
+Chol_3_M_S2= subset(split2, X.34.39..Cholesterol_levels == 3 & X.34.39..gender== 2)
+Chol_3_F_S2= subset(split2, X.34.39..Cholesterol_levels == 3 & X.34.39..gender== 1)
+
+
+Chol_1_M_S2_ill = subset(Chol_1_M_S2, X.34.39..cardio == 1)
+Chol_1_F_S2_ill = subset(Chol_1_F_S2, X.34.39..cardio == 1)
+Chol_2_M_S2_ill = subset(Chol_2_M_S2, X.34.39..cardio == 1)
+Chol_2_F_S2_ill = subset(Chol_2_F_S2, X.34.39..cardio == 1)
+Chol_3_M_S2_ill = subset(Chol_3_M_S2, X.34.39..cardio == 1)
+Chol_3_F_S2_ill = subset(Chol_3_F_S2, X.34.39..cardio == 1)
+
+perc1_chol_M_S2 = nrow(Chol_1_M_S2_ill)/nrow(Chol_1_M_S2) * 100
+perc1_chol_F_S2= nrow(Chol_1_F_S2_ill)/nrow(Chol_1_F_S2) * 100
+perc2_chol_M_S2= nrow(Chol_2_M_S2_ill)/nrow(Chol_2_M_S2) * 100
+perc2_chol_F_S2= nrow(Chol_2_F_S2_ill)/nrow(Chol_2_F_S2) * 100
+perc3_chol_M_S2= nrow(Chol_3_M_S2_ill)/nrow(Chol_3_M_S2) * 100
+perc3_chol_F_S2= nrow(Chol_3_F_S2_ill)/nrow(Chol_3_F_S2) * 100
+
+# Third range of age
+Chol_1_M_S3= subset(split3, X.39.44..Cholesterol_levels == 1 & X.39.44..gender == 2)
+Chol_1_F_S3= subset(split3, X.39.44..Cholesterol_levels == 1 & X.39.44..gender== 1)
+Chol_2_M_S3= subset(split3, X.39.44..Cholesterol_levels == 2 & X.39.44..gender== 2)
+Chol_2_F_S3= subset(split3, X.39.44..Cholesterol_levels == 2 & X.39.44..gender== 1)
+Chol_3_M_S3= subset(split3, X.39.44..Cholesterol_levels == 3 & X.39.44..gender== 2)
+Chol_3_F_S3= subset(split3, X.39.44..Cholesterol_levels == 3 & X.39.44..gender== 1)
+
+
+Chol_1_M_S3_ill = subset(Chol_1_M_S3, X.39.44..cardio == 1)
+Chol_1_F_S3_ill = subset(Chol_1_F_S3, X.39.44..cardio == 1)
+Chol_2_M_S3_ill = subset(Chol_2_M_S3, X.39.44..cardio == 1)
+Chol_2_F_S3_ill = subset(Chol_2_F_S3, X.39.44..cardio == 1)
+Chol_3_M_S3_ill = subset(Chol_3_M_S3, X.39.44..cardio == 1)
+Chol_3_F_S3_ill = subset(Chol_3_F_S3, X.39.44..cardio == 1)
+
+perc1_chol_M_S3 = nrow(Chol_1_M_S3_ill)/nrow(Chol_1_M_S3) * 100
+perc1_chol_F_S3= nrow(Chol_1_F_S3_ill)/nrow(Chol_1_F_S3) * 100
+perc2_chol_M_S3= nrow(Chol_2_M_S3_ill)/nrow(Chol_2_M_S3) * 100
+perc2_chol_F_S3= nrow(Chol_2_F_S3_ill)/nrow(Chol_2_F_S3) * 100
+perc3_chol_M_S3= nrow(Chol_3_M_S3_ill)/nrow(Chol_3_M_S3) * 100
+perc3_chol_F_S3= nrow(Chol_3_F_S3_ill)/nrow(Chol_3_F_S3) * 100
+
+# Fourth range of age
+Chol_1_M_S4= subset(split4, X.44.49..Cholesterol_levels == 1 & X.44.49..gender == 2)
+Chol_1_F_S4= subset(split4, X.44.49..Cholesterol_levels == 1 & X.44.49..gender== 1)
+Chol_2_M_S4= subset(split4, X.44.49..Cholesterol_levels == 2 & X.44.49..gender== 2)
+Chol_2_F_S4= subset(split4, X.44.49..Cholesterol_levels == 2 & X.44.49..gender== 1)
+Chol_3_M_S4= subset(split4, X.44.49..Cholesterol_levels == 3 & X.44.49..gender== 2)
+Chol_3_F_S4= subset(split4, X.44.49..Cholesterol_levels == 3 & X.44.49..gender== 1)
+
+
+Chol_1_M_S4_ill = subset(Chol_1_M_S4, X.44.49..cardio == 1)
+Chol_1_F_S4_ill = subset(Chol_1_F_S4, X.44.49..cardio == 1)
+Chol_2_M_S4_ill = subset(Chol_2_M_S4, X.44.49..cardio == 1)
+Chol_2_F_S4_ill = subset(Chol_2_F_S4, X.44.49..cardio == 1)
+Chol_3_M_S4_ill = subset(Chol_3_M_S4, X.44.49..cardio == 1)
+Chol_3_F_S4_ill = subset(Chol_3_F_S4, X.44.49..cardio == 1)
+
+perc1_chol_M_S4 = nrow(Chol_1_M_S4_ill)/nrow(Chol_1_M_S4) * 100
+perc1_chol_F_S4= nrow(Chol_1_F_S4_ill)/nrow(Chol_1_F_S4) * 100
+perc2_chol_M_S4= nrow(Chol_2_M_S4_ill)/nrow(Chol_2_M_S4) * 100
+perc2_chol_F_S4= nrow(Chol_2_F_S4_ill)/nrow(Chol_2_F_S4) * 100
+perc3_chol_M_S4= nrow(Chol_3_M_S4_ill)/nrow(Chol_3_M_S4) * 100
+perc3_chol_F_S4= nrow(Chol_3_F_S4_ill)/nrow(Chol_3_F_S4) * 100
+
+# Fifth range of age
+Chol_1_M_S5= subset(split5, X.49.54..Cholesterol_levels == 1 & X.49.54..gender == 2)
+Chol_1_F_S5= subset(split5, X.49.54..Cholesterol_levels == 1 & X.49.54..gender== 1)
+Chol_2_M_S5= subset(split5, X.49.54..Cholesterol_levels == 2 & X.49.54..gender== 2)
+Chol_2_F_S5= subset(split5, X.49.54..Cholesterol_levels == 2 & X.49.54..gender== 1)
+Chol_3_M_S5= subset(split5, X.49.54..Cholesterol_levels == 3 & X.49.54..gender== 2)
+Chol_3_F_S5= subset(split5, X.49.54..Cholesterol_levels == 3 & X.49.54..gender== 1)
+
+
+Chol_1_M_S5_ill = subset(Chol_1_M_S5, X.49.54..cardio == 1)
+Chol_1_F_S5_ill = subset(Chol_1_F_S5, X.49.54..cardio == 1)
+Chol_2_M_S5_ill = subset(Chol_2_M_S5, X.49.54..cardio == 1)
+Chol_2_F_S5_ill = subset(Chol_2_F_S5, X.49.54..cardio == 1)
+Chol_3_M_S5_ill = subset(Chol_3_M_S5, X.49.54..cardio == 1)
+Chol_3_F_S5_ill = subset(Chol_3_F_S5, X.49.54..cardio == 1)
+
+perc1_chol_M_S5 = nrow(Chol_1_M_S5_ill)/nrow(Chol_1_M_S5) * 100
+perc1_chol_F_S5= nrow(Chol_1_F_S5_ill)/nrow(Chol_1_F_S5) * 100
+perc2_chol_M_S5= nrow(Chol_2_M_S5_ill)/nrow(Chol_2_M_S5) * 100
+perc2_chol_F_S5= nrow(Chol_2_F_S5_ill)/nrow(Chol_2_F_S5) * 100
+perc3_chol_M_S5= nrow(Chol_3_M_S5_ill)/nrow(Chol_3_M_S5) * 100
+perc3_chol_F_S5= nrow(Chol_3_F_S5_ill)/nrow(Chol_3_F_S5) * 100
+
+# Sixth range of age
+Chol_1_M_S6= subset(split6, X.54.59..Cholesterol_levels == 1 & X.54.59..gender == 2)
+Chol_1_F_S6= subset(split6, X.54.59..Cholesterol_levels == 1 & X.54.59..gender== 1)
+Chol_2_M_S6= subset(split6, X.54.59..Cholesterol_levels == 2 & X.54.59..gender== 2)
+Chol_2_F_S6= subset(split6, X.54.59..Cholesterol_levels == 2 & X.54.59..gender== 1)
+Chol_3_M_S6= subset(split6, X.54.59..Cholesterol_levels == 3 & X.54.59..gender== 2)
+Chol_3_F_S6= subset(split6, X.54.59..Cholesterol_levels == 3 & X.54.59..gender== 1)
+
+
+Chol_1_M_S6_ill = subset(Chol_1_M_S6, X.54.59..cardio == 1)
+Chol_1_F_S6_ill = subset(Chol_1_F_S6, X.54.59..cardio == 1)
+Chol_2_M_S6_ill = subset(Chol_2_M_S6, X.54.59..cardio == 1)
+Chol_2_F_S6_ill = subset(Chol_2_F_S6, X.54.59..cardio == 1)
+Chol_3_M_S6_ill = subset(Chol_3_M_S6, X.54.59..cardio == 1)
+Chol_3_F_S6_ill = subset(Chol_3_F_S6, X.54.59..cardio == 1)
+
+perc1_chol_M_S6 = nrow(Chol_1_M_S6_ill)/nrow(Chol_1_M_S6) * 100
+perc1_chol_F_S6= nrow(Chol_1_F_S6_ill)/nrow(Chol_1_F_S6) * 100
+perc2_chol_M_S6= nrow(Chol_2_M_S6_ill)/nrow(Chol_2_M_S6) * 100
+perc2_chol_F_S6= nrow(Chol_2_F_S6_ill)/nrow(Chol_2_F_S6) * 100
+perc3_chol_M_S6= nrow(Chol_3_M_S6_ill)/nrow(Chol_3_M_S6) * 100
+perc3_chol_F_S6= nrow(Chol_3_F_S6_ill)/nrow(Chol_3_F_S6) * 100
+
+# Seventh range of age
+Chol_1_M_S7= subset(split7, X.59.64..Cholesterol_levels == 1 & X.59.64..gender == 2)
+Chol_1_F_S7= subset(split7, X.59.64..Cholesterol_levels == 1 & X.59.64..gender== 1)
+Chol_2_M_S7= subset(split7, X.59.64..Cholesterol_levels == 2 & X.59.64..gender== 2)
+Chol_2_F_S7= subset(split7, X.59.64..Cholesterol_levels == 2 & X.59.64..gender== 1)
+Chol_3_M_S7= subset(split7, X.59.64..Cholesterol_levels == 3 & X.59.64..gender== 2)
+Chol_3_F_S7= subset(split7, X.59.64..Cholesterol_levels == 3 & X.59.64..gender== 1)
+
+Chol_1_M_S7_ill = subset(Chol_1_M_S7, X.59.64..cardio == 1)
+Chol_1_F_S7_ill = subset(Chol_1_F_S7, X.59.64..cardio == 1)
+Chol_2_M_S7_ill = subset(Chol_2_M_S7, X.59.64..cardio == 1)
+Chol_2_F_S7_ill = subset(Chol_2_F_S7, X.59.64..cardio == 1)
+Chol_3_M_S7_ill = subset(Chol_3_M_S7, X.59.64..cardio == 1)
+Chol_3_F_S7_ill = subset(Chol_3_F_S7, X.59.64..cardio == 1)
+
+perc1_chol_M_S7 = nrow(Chol_1_M_S7_ill)/nrow(Chol_1_M_S7) * 100
+perc1_chol_F_S7= nrow(Chol_1_F_S7_ill)/nrow(Chol_1_F_S7) * 100
+perc2_chol_M_S7= nrow(Chol_2_M_S7_ill)/nrow(Chol_2_M_S7) * 100
+perc2_chol_F_S7= nrow(Chol_2_F_S7_ill)/nrow(Chol_2_F_S7) * 100
+perc3_chol_M_S7= nrow(Chol_3_M_S7_ill)/nrow(Chol_3_M_S7) * 100
+perc3_chol_F_S7= nrow(Chol_3_F_S7_ill)/nrow(Chol_3_F_S7) * 100
+
+#creation of vectors for a data frame. 
+CH_M_age_ranges = data.frame(S1_col_M = c(perc1_chol_M_S1,perc1_chol_M_S1,perc1_chol_M_S1),
+                             S2_col_M = c(perc1_chol_M_S2, perc2_chol_M_S2, perc3_chol_M_S2),
+                             S3_col_M = c(perc1_chol_M_S3, perc2_chol_M_S3, perc3_chol_M_S3),
+                             S4_col_M = c(perc1_chol_M_S4, perc2_chol_M_S4, perc3_chol_M_S4),
+                             S5_col_M = c(perc1_chol_M_S5, perc2_chol_M_S5, perc3_chol_M_S5),
+                             S6_col_M = c(perc1_chol_M_S6, perc2_chol_M_S6, perc3_chol_M_S6),
+                             S7_col_M = c(perc1_chol_M_S7, perc2_chol_M_S7, perc3_chol_M_S7),
+                             x_axis_M = c(1,2,3))
+
+CH_corr_age_ranges_M = ggplot(CH_M_age_ranges, aes( x = x_axis_M)) +  
+  
+  geom_line(aes(y = S1_col_M), color = "#e5e4fb") +
+  
+  geom_point(aes(y= S1_col_M), color = "#e5e4fb") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 3,                                                   
+            label="[29-34] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S2_col_M), color = "#cacaf6") +
+  
+  geom_point(aes(y= S2_col_M), color = "#cacaf6") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 20,                                                   
+            label="(34-39] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S3_col_M), color = "#aeb1f1") +
+  
+  geom_point(aes(y = S3_col_M), color = "#aeb1f1") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 26.5,                                                   
+            label="(39-44] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S4_col_M), color = "#8f98ec") +
+  
+  geom_point(aes(y = S4_col_M),color = "#8f98ec") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 38,                                                   
+            label="(44-49] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S5_col_M), color = "#6e80e7") +
+  
+  geom_point(aes(y = S5_col_M), color = "#6e80e7") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 45,                                                   
+            label="(49-54] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S6_col_M), color = "#4169e1") +
+  
+  geom_point(aes(y = S6_col_M), color = "#4169e1") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 49,                                                   
+            label="(54-59] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S7_col_M), color = "#2a356a") +
+  
+  geom_point(aes(y = S7_col_M), color = "#2a356a") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 58.5,                                                   
+            label="(59-64] yo",
+            color="black",
+            size = 1.5) +
+  
+  xlab('Cholesterol Levels') +  
+  
+  ylab('% ill') +    
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 80,                                                   
+            label="(B)",
+            color="black",
+            size = 1.5) +
+  
+  
+  
+  theme_classic() 
+
+CH_F_age_ranges = data.frame(S1_col_F = c(perc1_chol_F_S1, perc1_chol_F_S1, perc1_chol_F_S1),
+                             S2_col_F = c(perc1_chol_F_S2, perc2_chol_F_S2, perc3_chol_F_S2),
+                             S3_col_F = c(perc1_chol_F_S3, perc2_chol_F_S3, perc3_chol_F_S3),
+                             S4_col_F = c(perc1_chol_F_S4, perc2_chol_F_S4, perc3_chol_F_S4),
+                             S5_col_F = c(perc1_chol_F_S5, perc2_chol_F_S5, perc3_chol_F_S5),
+                             S6_col_F = c(perc1_chol_F_S6, perc2_chol_F_S6, perc3_chol_F_S6),
+                             S7_col_F = c(perc1_chol_F_S7, perc2_chol_F_S7, perc3_chol_F_S7),
+                             x_axis_F = c(1,2,3))
+
+CH_corr_age_ranges_F = ggplot(CH_F_age_ranges, aes( x = x_axis_F)) + 
+  
+  geom_line(aes(y = S1_col_F), color = "#f0dbdc") +
+  
+  geom_point(aes(y= S1_col_F), color = "#f0dbdc") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 3,                                                   
+            label="[29-34] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S2_col_F), color = "#e0b8ba") +
+  
+  geom_point(aes(y= S2_col_F), color = "#e0b8ba") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 16,                                                   
+            label="(34-39] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S3_col_F), color = "#ce9599") +
+  
+  geom_point(aes(y = S3_col_F), color = "#ce9599") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 22.5,                                                   
+            label="(39-44] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S4_col_F), color = "#bc7379") +
+  
+  geom_point(aes(y = S4_col_F), color = "#bc7379") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 33,                                                   
+            label="(44-49] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S5_col_F), color = "#a7505b") +
+  
+  geom_point(aes(y = S5_col_F), color = "#a7505b") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 42,                                                   
+            label="(49-54] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S6_col_F), color = "#922b3e") +
+  
+  geom_point(aes(y = S6_col_F), color = "#922b3e") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 48,                                                   
+            label="(54-59] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S7_col_F), color = "#491c22") +
+  
+  geom_point(aes(y = S7_col_F), color = "#491c22") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 61 ,                                                   
+            label="(59-64] yo",
+            color="black",
+            size = 1.5) +
+  
+  xlab('Cholesterol Levels') +  
+  
+  ylab('% ill') +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 80,                                                   
+            label="(C)",
+            color="black",
+            size = 1.5) +
+  
+  theme_classic() 
+
+Glu_1_M = subset(Dataset, Glucose_levels == 1 & gender == 2)
+Glu_1_F = subset(Dataset, Glucose_levels == 1 & gender == 1)
+Glu_2_M = subset(Dataset, Glucose_levels == 2 & gender == 2)
+Glu_2_F = subset(Dataset, Glucose_levels == 2 & gender == 1)
+Glu_3_M = subset(Dataset, Glucose_levels == 3 & gender == 2)
+Glu_3_F = subset(Dataset, Glucose_levels == 3 & gender == 1)
+
+Glu_1_M_ill = subset(Glu_1_M, cardio == 1)
+Glu_1_F_ill = subset(Glu_1_F, cardio == 1)
+Glu_2_M_ill = subset(Glu_2_M, cardio == 1)
+Glu_2_F_ill = subset(Glu_2_F, cardio == 1)
+Glu_3_M_ill = subset(Glu_3_M, cardio == 1)
+Glu_3_F_ill = subset(Glu_3_F, cardio == 1)
+
+perc1_glu_M = nrow(Glu_1_M_ill)/nrow(Glu_1_M) * 100
+perc1_glu_F = nrow(Glu_1_F_ill)/nrow(Glu_1_F) * 100
+perc2_glu_M = nrow(Glu_2_M_ill)/nrow(Glu_2_M) * 100
+perc2_glu_F = nrow(Glu_2_F_ill)/nrow(Glu_2_F) * 100
+perc3_glu_M = nrow(Glu_3_M_ill)/nrow(Glu_3_M) * 100
+perc3_glu_F = nrow(Glu_3_F_ill)/nrow(Glu_3_F) * 100
+
+x_axis_glu = c(1,2,3)
+vect_M_glu = c(perc1_glu_M,perc2_glu_M,perc3_glu_M)
+vect_M_glu=as.data.frame(vect_M_glu)
+vect_M_glu$Gender="M"
+vect_M_glu=cbind(vect_M_glu, x_axis_glu)
+colnames(vect_M_glu)[1]="Vect"
+
+vect_F_glu = c(perc1_glu_F,perc2_glu_F,perc3_glu_F)
+vect_F_glu=as.data.frame(vect_F_glu)
+vect_F_glu$Gender="F"
+vect_F_glu=cbind(vect_F_glu, x_axis_glu)
+colnames(vect_F_glu)[1]="Vect"
+
+data1_glu = rbind(vect_M_glu, vect_F_glu)
+
+GLU_corr_FILL = ggplot(data1_glu, aes( x = x_axis_glu, y = Vect, color = Gender )) +  
+  
+  geom_line(show.legend = FALSE) +
+  
+  geom_point(show.legend = FALSE) +
+  
+  scale_color_manual(values=c('M' = 'blue', 'F' = 'red')) +  
+  
+  xlab('Glucose Levels') +  
+  
+  ylab('% ill') +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 80,                                                   
+            label="(A)",
+            color="black",
+            size = 1.5) +
+  
+  theme_classic() 
+
+Glu_1_M_S1= subset(split1, X.29.34..Glucose_levels == 1 & X.29.34..gender == 2)
+Glu_1_F_S1= subset(split1, X.29.34..Glucose_levels == 1 & X.29.34..gender== 1)
+
+Glu_1_M_S1_ill = subset(Glu_1_M_S1, X.29.34..cardio == 1)
+Glu_1_F_S1_ill = subset(Glu_1_F_S1, X.29.34..cardio == 1)
+
+perc1_glu_M_S1 = nrow(Glu_1_M_S1_ill)/nrow(Glu_1_M_S1) * 100
+perc1_glu_F_S1= nrow(Glu_1_F_S1_ill)/nrow(Glu_1_F_S1) * 100
+
+# Second range of age
+Glu_1_M_S2= subset(split2, X.34.39..Glucose_levels == 1 & X.34.39..gender == 2)
+Glu_1_F_S2= subset(split2, X.34.39..Glucose_levels == 1 & X.34.39..gender== 1)
+Glu_2_M_S2= subset(split2, X.34.39..Glucose_levels == 2 & X.34.39..gender== 2)
+Glu_2_F_S2= subset(split2, X.34.39..Glucose_levels == 2 & X.34.39..gender== 1)
+Glu_3_M_S2= subset(split2, X.34.39..Glucose_levels == 3 & X.34.39..gender== 2)
+Glu_3_F_S2= subset(split2, X.34.39..Glucose_levels == 3 & X.34.39..gender== 1)
+
+
+Glu_1_M_S2_ill = subset(Glu_1_M_S2, X.34.39..cardio == 1)
+Glu_1_F_S2_ill = subset(Glu_1_F_S2, X.34.39..cardio == 1)
+Glu_2_M_S2_ill = subset(Glu_2_M_S2, X.34.39..cardio == 1)
+Glu_2_F_S2_ill = subset(Glu_2_F_S2, X.34.39..cardio == 1)
+Glu_3_M_S2_ill = subset(Glu_3_M_S2, X.34.39..cardio == 1)
+Glu_3_F_S2_ill = subset(Glu_3_F_S2, X.34.39..cardio == 1)
+
+perc1_glu_M_S2 = nrow(Glu_1_M_S2_ill)/nrow(Glu_1_M_S2) * 100
+perc1_glu_F_S2= nrow(Glu_1_F_S2_ill)/nrow(Glu_1_F_S2) * 100
+perc2_glu_M_S2= nrow(Glu_2_M_S2_ill)/nrow(Glu_2_M_S2) * 100
+perc2_glu_F_S2= nrow(Glu_2_F_S2_ill)/nrow(Glu_2_F_S2) * 100
+perc3_glu_M_S2= nrow(Glu_3_M_S2_ill)/nrow(Glu_3_M_S2) * 100
+perc3_glu_F_S2= nrow(Glu_3_F_S2_ill)/nrow(Glu_3_F_S2) * 100
+
+# Third range of age
+Glu_1_M_S3= subset(split3, X.39.44..Glucose_levels == 1 & X.39.44..gender == 2)
+Glu_1_F_S3= subset(split3, X.39.44..Glucose_levels == 1 & X.39.44..gender== 1)
+Glu_2_M_S3= subset(split3, X.39.44..Glucose_levels == 2 & X.39.44..gender== 2)
+Glu_2_F_S3= subset(split3, X.39.44..Glucose_levels == 2 & X.39.44..gender== 1)
+Glu_3_M_S3= subset(split3, X.39.44..Glucose_levels == 3 & X.39.44..gender== 2)
+Glu_3_F_S3= subset(split3, X.39.44..Glucose_levels == 3 & X.39.44..gender== 1)
+
+
+Glu_1_M_S3_ill = subset(Glu_1_M_S3, X.39.44..cardio == 1)
+Glu_1_F_S3_ill = subset(Glu_1_F_S3, X.39.44..cardio == 1)
+Glu_2_M_S3_ill = subset(Glu_2_M_S3, X.39.44..cardio == 1)
+Glu_2_F_S3_ill = subset(Glu_2_F_S3, X.39.44..cardio == 1)
+Glu_3_M_S3_ill = subset(Glu_3_M_S3, X.39.44..cardio == 1)
+Glu_3_F_S3_ill = subset(Glu_3_F_S3, X.39.44..cardio == 1)
+
+perc1_glu_M_S3 = nrow(Glu_1_M_S3_ill)/nrow(Glu_1_M_S3) * 100
+perc1_glu_F_S3= nrow(Glu_1_F_S3_ill)/nrow(Glu_1_F_S3) * 100
+perc2_glu_M_S3= nrow(Glu_2_M_S3_ill)/nrow(Glu_2_M_S3) * 100
+perc2_glu_F_S3= nrow(Glu_2_F_S3_ill)/nrow(Glu_2_F_S3) * 100
+perc3_glu_M_S3= nrow(Glu_3_M_S3_ill)/nrow(Glu_3_M_S3) * 100
+perc3_glu_F_S3= nrow(Glu_3_F_S3_ill)/nrow(Glu_3_F_S3) * 100
+
+# Fourth range of age
+Glu_1_M_S4= subset(split4, X.44.49..Glucose_levels == 1 & X.44.49..gender == 2)
+Glu_1_F_S4= subset(split4, X.44.49..Glucose_levels == 1 & X.44.49..gender== 1)
+Glu_2_M_S4= subset(split4, X.44.49..Glucose_levels == 2 & X.44.49..gender== 2)
+Glu_2_F_S4= subset(split4, X.44.49..Glucose_levels == 2 & X.44.49..gender== 1)
+Glu_3_M_S4= subset(split4, X.44.49..Glucose_levels == 3 & X.44.49..gender== 2)
+Glu_3_F_S4= subset(split4, X.44.49..Glucose_levels == 3 & X.44.49..gender== 1)
+
+
+Glu_1_M_S4_ill = subset(Glu_1_M_S4, X.44.49..cardio == 1)
+Glu_1_F_S4_ill = subset(Glu_1_F_S4, X.44.49..cardio == 1)
+Glu_2_M_S4_ill = subset(Glu_2_M_S4, X.44.49..cardio == 1)
+Glu_2_F_S4_ill = subset(Glu_2_F_S4, X.44.49..cardio == 1)
+Glu_3_M_S4_ill = subset(Glu_3_M_S4, X.44.49..cardio == 1)
+Glu_3_F_S4_ill = subset(Glu_3_F_S4, X.44.49..cardio == 1)
+
+perc1_glu_M_S4 = nrow(Glu_1_M_S4_ill)/nrow(Glu_1_M_S4) * 100
+perc1_glu_F_S4= nrow(Glu_1_F_S4_ill)/nrow(Glu_1_F_S4) * 100
+perc2_glu_M_S4= nrow(Glu_2_M_S4_ill)/nrow(Glu_2_M_S4) * 100
+perc2_glu_F_S4= nrow(Glu_2_F_S4_ill)/nrow(Glu_2_F_S4) * 100
+perc3_glu_M_S4= nrow(Glu_3_M_S4_ill)/nrow(Glu_3_M_S4) * 100
+perc3_glu_F_S4= nrow(Glu_3_F_S4_ill)/nrow(Glu_3_F_S4) * 100
+
+# Fifth range of age
+Glu_1_M_S5= subset(split5, X.49.54..Glucose_levels == 1 & X.49.54..gender == 2)
+Glu_1_F_S5= subset(split5, X.49.54..Glucose_levels == 1 & X.49.54..gender== 1)
+Glu_2_M_S5= subset(split5, X.49.54..Glucose_levels == 2 & X.49.54..gender== 2)
+Glu_2_F_S5= subset(split5, X.49.54..Glucose_levels == 2 & X.49.54..gender== 1)
+Glu_3_M_S5= subset(split5, X.49.54..Glucose_levels == 3 & X.49.54..gender== 2)
+Glu_3_F_S5= subset(split5, X.49.54..Glucose_levels == 3 & X.49.54..gender== 1)
+
+
+Glu_1_M_S5_ill = subset(Glu_1_M_S5, X.49.54..cardio == 1)
+Glu_1_F_S5_ill = subset(Glu_1_F_S5, X.49.54..cardio == 1)
+Glu_2_M_S5_ill = subset(Glu_2_M_S5, X.49.54..cardio == 1)
+Glu_2_F_S5_ill = subset(Glu_2_F_S5, X.49.54..cardio == 1)
+Glu_3_M_S5_ill = subset(Glu_3_M_S5, X.49.54..cardio == 1)
+Glu_3_F_S5_ill = subset(Glu_3_F_S5, X.49.54..cardio == 1)
+
+perc1_glu_M_S5 = nrow(Glu_1_M_S5_ill)/nrow(Glu_1_M_S5) * 100
+perc1_glu_F_S5= nrow(Glu_1_F_S5_ill)/nrow(Glu_1_F_S5) * 100
+perc2_glu_M_S5= nrow(Glu_2_M_S5_ill)/nrow(Glu_2_M_S5) * 100
+perc2_glu_F_S5= nrow(Glu_2_F_S5_ill)/nrow(Glu_2_F_S5) * 100
+perc3_glu_M_S5= nrow(Glu_3_M_S5_ill)/nrow(Glu_3_M_S5) * 100
+perc3_glu_F_S5= nrow(Glu_3_F_S5_ill)/nrow(Glu_3_F_S5) * 100
+
+# Sixth range of age
+Glu_1_M_S6= subset(split6, X.54.59..Glucose_levels == 1 & X.54.59..gender == 2)
+Glu_1_F_S6= subset(split6, X.54.59..Glucose_levels == 1 & X.54.59..gender== 1)
+Glu_2_M_S6= subset(split6, X.54.59..Glucose_levels == 2 & X.54.59..gender== 2)
+Glu_2_F_S6= subset(split6, X.54.59..Glucose_levels == 2 & X.54.59..gender== 1)
+Glu_3_M_S6= subset(split6, X.54.59..Glucose_levels == 3 & X.54.59..gender== 2)
+Glu_3_F_S6= subset(split6, X.54.59..Glucose_levels == 3 & X.54.59..gender== 1)
+
+
+Glu_1_M_S6_ill = subset(Glu_1_M_S6, X.54.59..cardio == 1)
+Glu_1_F_S6_ill = subset(Glu_1_F_S6, X.54.59..cardio == 1)
+Glu_2_M_S6_ill = subset(Glu_2_M_S6, X.54.59..cardio == 1)
+Glu_2_F_S6_ill = subset(Glu_2_F_S6, X.54.59..cardio == 1)
+Glu_3_M_S6_ill = subset(Glu_3_M_S6, X.54.59..cardio == 1)
+Glu_3_F_S6_ill = subset(Glu_3_F_S6, X.54.59..cardio == 1)
+
+perc1_glu_M_S6 = nrow(Glu_1_M_S6_ill)/nrow(Glu_1_M_S6) * 100
+perc1_glu_F_S6= nrow(Glu_1_F_S6_ill)/nrow(Glu_1_F_S6) * 100
+perc2_glu_M_S6= nrow(Glu_2_M_S6_ill)/nrow(Glu_2_M_S6) * 100
+perc2_glu_F_S6= nrow(Glu_2_F_S6_ill)/nrow(Glu_2_F_S6) * 100
+perc3_glu_M_S6= nrow(Glu_3_M_S6_ill)/nrow(Glu_3_M_S6) * 100
+perc3_glu_F_S6= nrow(Glu_3_F_S6_ill)/nrow(Glu_3_F_S6) * 100
+
+# Seventh range of age
+Glu_1_M_S7= subset(split7, X.59.64..Glucose_levels == 1 & X.59.64..gender == 2)
+Glu_1_F_S7= subset(split7, X.59.64..Glucose_levels == 1 & X.59.64..gender== 1)
+Glu_2_M_S7= subset(split7, X.59.64..Glucose_levels == 2 & X.59.64..gender== 2)
+Glu_2_F_S7= subset(split7, X.59.64..Glucose_levels == 2 & X.59.64..gender== 1)
+Glu_3_M_S7= subset(split7, X.59.64..Glucose_levels == 3 & X.59.64..gender== 2)
+Glu_3_F_S7= subset(split7, X.59.64..Glucose_levels == 3 & X.59.64..gender== 1)
+
+Glu_1_M_S7_ill = subset(Glu_1_M_S7, X.59.64..cardio == 1)
+Glu_1_F_S7_ill = subset(Glu_1_F_S7, X.59.64..cardio == 1)
+Glu_2_M_S7_ill = subset(Glu_2_M_S7, X.59.64..cardio == 1)
+Glu_2_F_S7_ill = subset(Glu_2_F_S7, X.59.64..cardio == 1)
+Glu_3_M_S7_ill = subset(Glu_3_M_S7, X.59.64..cardio == 1)
+Glu_3_F_S7_ill = subset(Glu_3_F_S7, X.59.64..cardio == 1)
+
+perc1_glu_M_S7 = nrow(Glu_1_M_S7_ill)/nrow(Glu_1_M_S7) * 100
+perc1_glu_F_S7= nrow(Glu_1_F_S7_ill)/nrow(Glu_1_F_S7) * 100
+perc2_glu_M_S7= nrow(Glu_2_M_S7_ill)/nrow(Glu_2_M_S7) * 100
+perc2_glu_F_S7= nrow(Glu_2_F_S7_ill)/nrow(Glu_2_F_S7) * 100
+perc3_glu_M_S7= nrow(Glu_3_M_S7_ill)/nrow(Glu_3_M_S7) * 100
+perc3_glu_F_S7= nrow(Glu_3_F_S7_ill)/nrow(Glu_3_F_S7) * 100
+
+#creation of vectors for a data frame. 
+GLU_M_age_ranges = data.frame(S1_col_M_glu = c(perc1_glu_M_S1,perc1_glu_M_S1,perc1_glu_M_S1),
+                             S2_col_M_glu = c(perc1_glu_M_S2, perc2_glu_M_S2, perc3_glu_M_S2),
+                             S3_col_M_glu = c(perc1_glu_M_S3, perc2_glu_M_S3, perc3_glu_M_S3),
+                             S4_col_M_glu = c(perc1_glu_M_S4, perc2_glu_M_S4, perc3_glu_M_S4),
+                             S5_col_M_glu = c(perc1_glu_M_S5, perc2_glu_M_S5, perc3_glu_M_S5),
+                             S6_col_M_glu = c(perc1_glu_M_S6, perc2_glu_M_S6, perc3_glu_M_S6),
+                             S7_col_M_glu = c(perc1_glu_M_S7, perc2_glu_M_S7, perc3_glu_M_S7),
+                             x_axis_M_glu = c(1,2,3))
+
+GLU_corr_age_ranges_M = ggplot(GLU_M_age_ranges, aes( x = x_axis_M_glu)) +  
+  
+  geom_line(aes(y = S1_col_M_glu), color = "#e5e4fb") +
+  
+  geom_point(aes(y= S1_col_M_glu), color = "#e5e4fb") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 3,                                                   
+            label="[29-34] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S2_col_M_glu), color = "#cacaf6") +
+  
+  geom_point(aes(y= S2_col_M_glu), color = "#cacaf6") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 22,                                                   
+            label="(34-39] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S3_col_M_glu), color = "#aeb1f1") +
+  
+  geom_point(aes(y = S3_col_M_glu), color = "#aeb1f1") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 29.5,                                                   
+            label="(39-44] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S4_col_M_glu), color = "#8f98ec") +
+  
+  geom_point(aes(y = S4_col_M_glu),color = "#8f98ec") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 42,                                                   
+            label="(44-49] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S5_col_M_glu), color = "#6e80e7") +
+  
+  geom_point(aes(y = S5_col_M_glu), color = "#6e80e7") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 49,                                                   
+            label="(49-54] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S6_col_M_glu), color = "#4169e1") +
+  
+  geom_point(aes(y = S6_col_M_glu), color = "#4169e1") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 53,                                                   
+            label="(54-59] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S7_col_M_glu), color = "#2a356a") +
+  
+  geom_point(aes(y = S7_col_M_glu), color = "#2a356a") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 61,                                                   
+            label="(59-64] yo",
+            color="black",
+            size = 1.5) +
+  
+  xlab('Glucose Levels') +  
+  
+  ylab('% ill') +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 80,                                                   
+            label="(B)",
+            color="black",
+            size = 1.5) +
+  
+  theme_classic()
+
+GLU_F_age_ranges = data.frame(S1_col_F_glu = c(perc1_glu_F_S1,perc1_glu_F_S1,perc1_glu_F_S1),
+                             S2_col_F_glu = c(perc1_glu_F_S2, perc2_glu_F_S2, perc3_glu_F_S2),
+                             S3_col_F_glu = c(perc1_glu_F_S3, perc2_glu_F_S3, perc3_glu_F_S3),
+                             S4_col_F_glu = c(perc1_glu_F_S4, perc2_glu_F_S4, perc3_glu_F_S4),
+                             S5_col_F_glu = c(perc1_glu_F_S5, perc2_glu_F_S5, perc3_glu_F_S5),
+                             S6_col_F_glu = c(perc1_glu_F_S6, perc2_glu_F_S6, perc3_glu_F_S6),
+                             S7_col_F_glu = c(perc1_glu_F_S7, perc2_glu_F_S7, perc3_glu_F_S7),
+                             x_axis_F_glu = c(1,2,3))
+
+GLU_corr_age_ranges_F = ggplot(GLU_F_age_ranges, aes( x = x_axis_F_glu)) + 
+  
+  geom_line(aes(y = S1_col_F_glu), color = "#f0dbdc") +
+  
+  geom_point(aes(y= S1_col_F_glu), color = "#f0dbdc") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 3,                                                   
+            label="[29-34] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S2_col_F_glu), color = "#e0b8ba") +
+  
+  geom_point(aes(y= S2_col_F_glu), color = "#e0b8ba") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 18.5,                                                   
+            label="(34-39] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S3_col_F_glu), color = "#ce9599") +
+  
+  geom_point(aes(y = S3_col_F_glu), color = "#ce9599") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 25.5,                                                   
+            label="(39-44] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S4_col_F_glu), color = "#bc7379") +
+  
+  geom_point(aes(y = S4_col_F_glu), color = "#bc7379") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 37,                                                   
+            label="(44-49] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S5_col_F_glu), color = "#a7505b") +
+  
+  geom_point(aes(y = S5_col_F_glu), color = "#a7505b") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 45.5,                                                   
+            label="(49-54] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S6_col_F_glu), color = "#922b3e") +
+  
+  geom_point(aes(y = S6_col_F_glu), color = "#922b3e") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 53,                                                   
+            label="(54-59] yo",
+            color="black",
+            size = 1.5) +
+  
+  geom_line(aes(y = S7_col_F_glu), color = "#491c22") +
+  
+  geom_point(aes(y = S7_col_F_glu), color = "#491c22") +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 64.5,                                                   
+            label="(59-64] yo",
+            color="black",
+            size = 1.5) +
+  
+  xlab('Glucose Levels') +  
+  
+  ylab('% ill') +
+  
+  annotate(geom="text",                                                        
+            x= 1, y= 80,                                                   
+            label="(C)",
+            color="black",
+            size = 1.5) +
+  
+  theme_classic() 
+
+```
+
+##
+```{r , echo=FALSE}
+Corr_matrix
+```
+##
+```{r , echo=FALSE}
+CH_corr_FILL
+```
+
+##
+```{r , echo=FALSE}
+CH_corr_age_ranges_M
+```
+
+##
+```{r , echo=FALSE}
+CH_corr_age_ranges_F
+```
+
+##
+```{r , echo=FALSE}
+CORR_matrix
+```
+
+##
+```{r , echo=FALSE}
+GLU_corr_FILL
+```
+
+##
+```{r , echo=FALSE}
+
+GLU_corr_age_ranges_M
+```
+
+##
+```{r , echo=FALSE}
+
+GLU_corr_age_ranges_F
+```
+
+```{r Impact of age on the illness, echo=FALSE}
+age_split = split(Dataset, cut(Dataset$age_years, c(29, 34, 39, 44, 49, 54,59, 64), include.lowest = TRUE))
+
+split1 = data.frame(age_split[1]) 
+split2 = data.frame(age_split[2]) 
+split3 = data.frame(age_split[3])
+split4 = data.frame(age_split[4])
+split5 = data.frame(age_split[5])
+split6 = data.frame(age_split[6])
+split7 = data.frame(age_split[7])
+
+ill1 = subset.data.frame(split1, X.29.34..cardio == 1)
+ill2 = subset.data.frame(split2, X.34.39..cardio == 1)
+ill3 = subset.data.frame(split3, X.39.44..cardio == 1)
+ill4 = subset.data.frame(split4, X.44.49..cardio == 1)
+ill5 = subset.data.frame(split5, X.49.54..cardio == 1)
+ill6 = subset.data.frame(split6, X.54.59..cardio == 1)
+ill7 = subset.data.frame(split7, X.59.64..cardio == 1)
+
+
+perc1 = nrow(ill1) / nrow(split1) * 100
+perc2 = nrow(ill2) / nrow(split2) * 100
+perc3 = nrow(ill3) / nrow(split3) * 100
+perc4 = nrow(ill4) / nrow(split4) * 100
+perc5 = nrow(ill5) / nrow(split5) * 100
+perc6 = nrow(ill6) / nrow(split6) * 100
+perc7 = nrow(ill7) / nrow(split7) * 100
+
+
+illness = c(perc1, perc2, perc3, perc4, perc5, perc6, perc7)
+
+age_ranges = c(1,2,3,4,5,6,7)
+
+sporty = as.data.frame(cbind(illness, age_ranges))
+
+AGE_ill = ggplot(sporty, aes(x = age_ranges, y = illness)) +
+  
+  geom_line() +
+  
+  geom_point() +
+  
+  annotate(geom="text",                                                        
+            x= 1.5, y=0 ,                                                   
+            label="[29-34] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 2.3, y= 20,                                                   
+            label="(34-39] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 3.3, y=28 ,                                                   
+            label="(39-44] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 4.3, y=40 ,                                                   
+            label="(44-49] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 5.3, y=43 ,                                                   
+            label="(49-54] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 6.3, y=53 ,                                                   
+            label="(54-59] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 7.3, y=63 ,                                                   
+            label="(59-64] yo",
+            color="black",
+            size = 3.5) +
+  
+  xlab('# Range of age') +
+  
+  ylab('% ill') +
+  
+  theme(axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.line.x = element_blank()) +
+  
+  theme_classic()
+
+```
+
+##
+```{r , echo=FALSE, warning = FALSE, message=FALSE}
+AGE_ill
+```
+
+```{r Impact of smoke on ilness, echo=FALSE, warning = FALSE}
+
+smoke_1 = subset.data.frame(split1, X.29.34..smoke == 1)
+smoke_2 = subset.data.frame(split2, X.34.39..smoke == 1)
+smoke_3 = subset.data.frame(split3, X.39.44..smoke == 1)
+smoke_4 = subset.data.frame(split4, X.44.49..smoke == 1)
+smoke_5 = subset.data.frame(split5, X.49.54..smoke == 1)
+smoke_6 = subset.data.frame(split6, X.54.59..smoke == 1)
+smoke_7 = subset.data.frame(split7, X.59.64..smoke == 1)
+
+smoke_1_ill = subset.data.frame(split1, X.29.34..smoke == 1 & X.29.34..cardio == 1)
+smoke_2_ill = subset.data.frame(split2, X.34.39..smoke == 1 & X.34.39..cardio == 1)
+smoke_3_ill = subset.data.frame(split3, X.39.44..smoke == 1 & X.39.44..cardio == 1)
+smoke_4_ill = subset.data.frame(split4, X.44.49..smoke == 1 & X.44.49..cardio == 1)
+smoke_5_ill = subset.data.frame(split5, X.49.54..smoke == 1 & X.49.54..cardio == 1)
+smoke_6_ill = subset.data.frame(split6, X.54.59..smoke == 1 & X.54.59..cardio == 1)
+smoke_7_ill = subset.data.frame(split7, X.59.64..smoke == 1 & X.59.64..cardio == 1)
+
+perc_smoke_1 = nrow(smoke_1_ill) / nrow(smoke_1) * 100
+perc_smoke_2 = nrow(smoke_2_ill) / nrow(smoke_2) * 100
+perc_smoke_3 = nrow(smoke_3_ill) / nrow(smoke_3) * 100
+perc_smoke_4 = nrow(smoke_4_ill) / nrow(smoke_4) * 100
+perc_smoke_5 = nrow(smoke_5_ill) / nrow(smoke_5) * 100
+perc_smoke_6 = nrow(smoke_6_ill) / nrow(smoke_6) * 100
+perc_smoke_7 = nrow(smoke_7_ill) / nrow(smoke_7) * 100
+
+notsmoke_1 = subset.data.frame(split1, X.29.34..smoke == 0)
+notsmoke_2 = subset.data.frame(split2, X.34.39..smoke == 0)
+notsmoke_3 = subset.data.frame(split3, X.39.44..smoke == 0)
+notsmoke_4 = subset.data.frame(split4, X.44.49..smoke == 0)
+notsmoke_5 = subset.data.frame(split5, X.49.54..smoke == 0)
+notsmoke_6 = subset.data.frame(split6, X.54.59..smoke == 0)
+notsmoke_7 = subset.data.frame(split7, X.59.64..smoke == 0)
+
+notsmoke_1_ill = subset.data.frame(split1, X.29.34..smoke == 0 & X.29.34..cardio == 1)
+notsmoke_2_ill = subset.data.frame(split2, X.34.39..smoke == 0 & X.34.39..cardio == 1)
+notsmoke_3_ill = subset.data.frame(split3, X.39.44..smoke == 0 & X.39.44..cardio == 1)
+notsmoke_4_ill = subset.data.frame(split4, X.44.49..smoke == 0 & X.44.49..cardio == 1)
+notsmoke_5_ill = subset.data.frame(split5, X.49.54..smoke == 0 & X.49.54..cardio == 1)
+notsmoke_6_ill = subset.data.frame(split6, X.54.59..smoke == 0 & X.54.59..cardio == 1)
+notsmoke_7_ill = subset.data.frame(split7, X.59.64..smoke == 0 & X.59.64..cardio == 1)
+
+perc_notsmoke_1 = nrow(notsmoke_1_ill) / nrow(notsmoke_1) * 100
+perc_notsmoke_2 = nrow(notsmoke_2_ill) / nrow(notsmoke_2) * 100
+perc_notsmoke_3 = nrow(notsmoke_3_ill) / nrow(notsmoke_3) * 100
+perc_notsmoke_4 = nrow(notsmoke_4_ill) / nrow(notsmoke_4) * 100
+perc_notsmoke_5 = nrow(notsmoke_5_ill) / nrow(notsmoke_5) * 100
+perc_notsmoke_6 = nrow(notsmoke_6_ill) / nrow(notsmoke_6) * 100
+perc_notsmoke_7 = nrow(notsmoke_7_ill) / nrow(notsmoke_7) * 100
+
+smoke_illness = c(perc_smoke_1, perc_smoke_2, perc_smoke_3, perc_smoke_4, perc_smoke_5, perc_smoke_6, perc_smoke_7)
+
+notsmoke_illness = c(perc_smoke_1, perc_notsmoke_2, perc_notsmoke_3, perc_notsmoke_4, perc_notsmoke_5, perc_notsmoke_6, perc_notsmoke_7)
+
+age_ranges = c(1,2,3,4,5,6,7)
+
+smokie = as.data.frame(cbind(smoke_illness, notsmoke_illness, age_ranges))
+
+SMOKE_ill = ggplot(smokie, aes(x = age_ranges, y = smoke_illness)) +
+  
+  geom_line() +
+  
+  geom_point() +
+  
+  geom_line(aes(y = notsmoke_illness), color = "red") +
+  
+  geom_point(aes(y = notsmoke_illness), color = "red") +
+  
+  annotate(geom="text",                                                        
+            x= 1.5, y=0 ,                                                   
+            label="[29-34] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 2.3, y= 20,                                                   
+            label="(34-39] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 3.3, y=28 ,                                                   
+            label="(39-44] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 4.3, y=40 ,                                                   
+            label="(44-49] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 5.3, y=43 ,                                                   
+            label="(49-54] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 6.4, y=53 ,                                                   
+            label="(54-59] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 7.35, y=63 ,                                                   
+            label="(59-64] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom = "segment", 
+           x = 1, xend = 1.5, y = 70, yend = 70,
+           colour = "black") +
+  
+  annotate(geom="text",                                                        
+            x= 1.85, y=70 ,                                                   
+            label="Smoke",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom = "segment", 
+           x = 1, xend = 1.5, y = 67, yend = 67,
+           colour = "red") +
+  
+  annotate(geom="text",                                                        
+            x= 2.0, y=67 ,                                                   
+            label="Don't smoke",
+            color="black",
+            size = 3.5) +
+  
+  ylab('% ill') +
+  
+  theme(axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.line.x = element_blank()) +
+  
+  theme_classic()
+
+```
+
+##
+```{r , echo=FALSE, warning=FALSE, message=FALSE}
+
+SMOKE_ill
+```
+
+```{r Impact of alcool on illness, echo=FALSE, warning = FALSE}
+
+alcool_1 = subset.data.frame(split1, X.29.34..alco == 1)
+alcool_2 = subset.data.frame(split2, X.34.39..alco == 1)
+alcool_3 = subset.data.frame(split3, X.39.44..alco == 1)
+alcool_4 = subset.data.frame(split4, X.44.49..alco == 1)
+alcool_5 = subset.data.frame(split5, X.49.54..alco == 1)
+alcool_6 = subset.data.frame(split6, X.54.59..alco == 1)
+alcool_7 = subset.data.frame(split7, X.59.64..alco == 1)
+
+alcool_1_ill = subset.data.frame(split1, X.29.34..alco == 1 & X.29.34..cardio == 1)
+alcool_2_ill = subset.data.frame(split2, X.34.39..alco == 1 & X.34.39..cardio == 1)
+alcool_3_ill = subset.data.frame(split3, X.39.44..alco == 1 & X.39.44..cardio == 1)
+alcool_4_ill = subset.data.frame(split4, X.44.49..alco == 1 & X.44.49..cardio == 1)
+alcool_5_ill = subset.data.frame(split5, X.49.54..alco == 1 & X.49.54..cardio == 1)
+alcool_6_ill = subset.data.frame(split6, X.54.59..alco == 1 & X.54.59..cardio == 1)
+alcool_7_ill = subset.data.frame(split7, X.59.64..alco == 1 & X.59.64..cardio == 1)
+
+perc_alcool_1 = nrow(alcool_1_ill) / nrow(alcool_1) * 100
+perc_alcool_2 = nrow(alcool_2_ill) / nrow(alcool_2) * 100
+perc_alcool_3 = nrow(alcool_3_ill) / nrow(alcool_3) * 100
+perc_alcool_4 = nrow(alcool_4_ill) / nrow(alcool_4) * 100
+perc_alcool_5 = nrow(alcool_5_ill) / nrow(alcool_5) * 100
+perc_alcool_6 = nrow(alcool_6_ill) / nrow(alcool_6) * 100
+perc_alcool_7 = nrow(alcool_7_ill) / nrow(alcool_7) * 100
+
+notalcool_1 = subset.data.frame(split1, X.29.34..alco == 0)
+notalcool_2 = subset.data.frame(split2, X.34.39..alco == 0)
+notalcool_3 = subset.data.frame(split3, X.39.44..alco == 0)
+notalcool_4 = subset.data.frame(split4, X.44.49..alco == 0)
+notalcool_5 = subset.data.frame(split5, X.49.54..alco == 0)
+notalcool_6 = subset.data.frame(split6, X.54.59..alco == 0)
+notalcool_7 = subset.data.frame(split7, X.59.64..alco == 0)
+
+notalcool_1_ill = subset.data.frame(split1, X.29.34..alco == 0 & X.29.34..cardio == 1)
+notalcool_2_ill = subset.data.frame(split2, X.34.39..alco == 0 & X.34.39..cardio == 1)
+notalcool_3_ill = subset.data.frame(split3, X.39.44..alco == 0 & X.39.44..cardio == 1)
+notalcool_4_ill = subset.data.frame(split4, X.44.49..alco == 0 & X.44.49..cardio == 1)
+notalcool_5_ill = subset.data.frame(split5, X.49.54..alco == 0 & X.49.54..cardio == 1)
+notalcool_6_ill = subset.data.frame(split6, X.54.59..alco == 0 & X.54.59..cardio == 1)
+notalcool_7_ill = subset.data.frame(split7, X.59.64..alco == 0 & X.59.64..cardio == 1)
+
+perc_notalcool_1 = nrow(notalcool_1_ill) / nrow(notalcool_1) * 100
+perc_notalcool_2 = nrow(notalcool_2_ill) / nrow(notalcool_2) * 100
+perc_notalcool_3 = nrow(notalcool_3_ill) / nrow(notalcool_3) * 100
+perc_notalcool_4 = nrow(notalcool_4_ill) / nrow(notalcool_4) * 100
+perc_notalcool_5 = nrow(notalcool_5_ill) / nrow(notalcool_5) * 100
+perc_notalcool_6 = nrow(notalcool_6_ill) / nrow(notalcool_6) * 100
+perc_notalcool_7 = nrow(notalcool_7_ill) / nrow(notalcool_7) * 100
+
+alcool_illness = c(perc_alcool_1, perc_alcool_2, perc_alcool_3, perc_alcool_4, perc_alcool_5, perc_alcool_6, perc_alcool_7)
+
+notalcool_illness = c(perc_alcool_1, perc_notalcool_2, perc_notalcool_3, perc_notalcool_4, perc_notalcool_5, perc_notalcool_6, perc_notalcool_7)
+
+age_ranges = c(1,2,3,4,5,6,7)
+
+alcoolie = as.data.frame(cbind(alcool_illness, notalcool_illness, age_ranges))
+
+ALCOOL_ill = ggplot(alcoolie, aes(x = age_ranges, y = alcool_illness)) +
+  
+  geom_line() +
+  
+  geom_point() +
+  
+  geom_line(aes(y = notalcool_illness), color = "red") +
+  
+  geom_point(aes(y = notalcool_illness), color = "red") +
+  
+  annotate(geom="text",                                                        
+            x= 1.5, y=0 ,                                                   
+            label="[29-34] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 2.3, y= 20,                                                   
+            label="(34-39] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 3.3, y=28 ,                                                   
+            label="(39-44] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 4.3, y=40 ,                                                   
+            label="(44-49] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 5.3, y=43 ,                                                   
+            label="(49-54] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 6.3, y=53 ,                                                   
+            label="(54-59] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 7.3, y=63 ,                                                   
+            label="(59-64] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom = "segment", 
+           x = 1, xend = 1.5, y = 70, yend = 70,
+           colour = "black") +
+  
+  annotate(geom="text",                                                        
+            x= 1.85, y=70 ,                                                   
+            label="Drink",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom = "segment", 
+           x = 1, xend = 1.5, y = 67, yend = 67,
+           colour = "red") +
+  
+  annotate(geom="text",                                                        
+            x= 2.0, y=67 ,                                                   
+            label="Don't drink",
+            color="black",
+            size = 3.5) +
+
+  
+  ylab('% ill') +
+  
+  theme(axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.line.x = element_blank()) +
+  
+  theme_classic()
+
+```
+
+##
+```{r , echo=FALSE, warning=FALSE, message=FALSE}
+ALCOOL_ill
+```
+
+```{r Sport impact on illness, echo=FALSE, warning = FALSE}
+
+sporty_1 = subset.data.frame(split1, X.29.34..active == 1)
+sporty_2 = subset.data.frame(split2, X.34.39..active == 1)
+sporty_3 = subset.data.frame(split3, X.39.44..active == 1)
+sporty_4 = subset.data.frame(split4, X.44.49..active == 1)
+sporty_5 = subset.data.frame(split5, X.49.54..active == 1)
+sporty_6 = subset.data.frame(split6, X.54.59..active == 1)
+sporty_7 = subset.data.frame(split7, X.59.64..active == 1)
+
+sporty_1_ill = subset.data.frame(split1, X.29.34..active == 1 & X.29.34..cardio == 1)
+sporty_2_ill = subset.data.frame(split2, X.34.39..active == 1 & X.34.39..cardio == 1)
+sporty_3_ill = subset.data.frame(split3, X.39.44..active == 1 & X.39.44..cardio == 1)
+sporty_4_ill = subset.data.frame(split4, X.44.49..active == 1 & X.44.49..cardio == 1)
+sporty_5_ill = subset.data.frame(split5, X.49.54..active == 1 & X.49.54..cardio == 1)
+sporty_6_ill = subset.data.frame(split6, X.54.59..active == 1 & X.54.59..cardio == 1)
+sporty_7_ill = subset.data.frame(split7, X.59.64..active == 1 & X.59.64..cardio == 1)
+
+perc_sporty_1 = nrow(sporty_1_ill) / nrow(sporty_1) * 100
+perc_sporty_2 = nrow(sporty_2_ill) / nrow(sporty_2) * 100
+perc_sporty_3 = nrow(sporty_3_ill) / nrow(sporty_3) * 100
+perc_sporty_4 = nrow(sporty_4_ill) / nrow(sporty_4) * 100
+perc_sporty_5 = nrow(sporty_5_ill) / nrow(sporty_5) * 100
+perc_sporty_6 = nrow(sporty_6_ill) / nrow(sporty_6) * 100
+perc_sporty_7 = nrow(sporty_7_ill) / nrow(sporty_7) * 100
+
+notsporty_1 = subset.data.frame(split1, X.29.34..active == 0)
+notsporty_2 = subset.data.frame(split2, X.34.39..active == 0)
+notsporty_3 = subset.data.frame(split3, X.39.44..active == 0)
+notsporty_4 = subset.data.frame(split4, X.44.49..active == 0)
+notsporty_5 = subset.data.frame(split5, X.49.54..active == 0)
+notsporty_6 = subset.data.frame(split6, X.54.59..active == 0)
+notsporty_7 = subset.data.frame(split7, X.59.64..active == 0)
+
+notsporty_1_ill = subset.data.frame(split1, X.29.34..active == 0 & X.29.34..cardio == 1)
+notsporty_2_ill = subset.data.frame(split2, X.34.39..active == 0 & X.34.39..cardio == 1)
+notsporty_3_ill = subset.data.frame(split3, X.39.44..active == 0 & X.39.44..cardio == 1)
+notsporty_4_ill = subset.data.frame(split4, X.44.49..active == 0 & X.44.49..cardio == 1)
+notsporty_5_ill = subset.data.frame(split5, X.49.54..active == 0 & X.49.54..cardio == 1)
+notsporty_6_ill = subset.data.frame(split6, X.54.59..active == 0 & X.54.59..cardio == 1)
+notsporty_7_ill = subset.data.frame(split7, X.59.64..active == 0 & X.59.64..cardio == 1)
+
+perc_notsporty_1 = nrow(notsporty_1_ill) / nrow(notsporty_1) * 100
+perc_notsporty_2 = nrow(notsporty_2_ill) / nrow(notsporty_2) * 100
+perc_notsporty_3 = nrow(notsporty_3_ill) / nrow(notsporty_3) * 100
+perc_notsporty_4 = nrow(notsporty_4_ill) / nrow(notsporty_4) * 100
+perc_notsporty_5 = nrow(notsporty_5_ill) / nrow(notsporty_5) * 100
+perc_notsporty_6 = nrow(notsporty_6_ill) / nrow(notsporty_6) * 100
+perc_notsporty_7 = nrow(notsporty_7_ill) / nrow(notsporty_7) * 100
+
+sporty_illness = c(perc_sporty_1, perc_sporty_2, perc_sporty_3, perc_sporty_4, perc_sporty_5, perc_sporty_6, perc_sporty_7)
+
+notsporty_illness = c(perc_sporty_1, perc_notsporty_2, perc_notsporty_3, perc_notsporty_4, perc_notsporty_5, perc_notsporty_6, perc_notsporty_7)
+
+age_ranges = c(1,2,3,4,5,6,7)
+
+sporty = as.data.frame(cbind(sporty_illness, notsporty_illness, age_ranges))
+
+SP_ill = ggplot(sporty, aes(x = age_ranges, y = sporty_illness)) +
+  
+  geom_line() +
+  
+  geom_point() +
+  
+  geom_line(aes(y = notsporty_illness), color = "red") +
+  
+  geom_point(aes(y = notsporty_illness), color = "red") +
+  
+  annotate(geom="text",                                                        
+            x= 1.5, y=0 ,                                                   
+            label="[29-34] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 2.3, y= 20,                                                   
+            label="(34-39] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 3.3, y=28 ,                                                   
+            label="(39-44] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 4.3, y=40 ,                                                   
+            label="(44-49] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 5.3, y=43 ,                                                   
+            label="(49-54] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 6.3, y=53 ,                                                   
+            label="(54-59] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom="text",                                                        
+            x= 7.3, y=63 ,                                                   
+            label="(59-64] yo",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom = "segment", 
+           x = 1, xend = 1.5, y = 70, yend = 70,
+           colour = "black") +
+  
+  annotate(geom="text",                                                        
+            x= 1.85, y=70 ,                                                   
+            label="Do sport",
+            color="black",
+            size = 3.5) +
+  
+  annotate(geom = "segment", 
+           x = 1, xend = 1.5, y = 67, yend = 67,
+           colour = "red") +
+  
+  annotate(geom="text",                                                        
+            x= 2.0, y=67 ,                                                   
+            label="Don't do sport",
+            color="black",
+            size = 3.5) +
+  
+  xlab('# Range of age') +
+  
+  ylab('% ill') +
+  
+  theme(axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.line.x = element_blank()) +
+  
+  theme_classic()
+
+
+```
+
+##
+```{r , echo=FALSE}
+SP_ill
+```
+
+```{r Best and worst casa analysis, warning = FALSE, echo = FALSE, message = FALSE}
+best = subset(Dataset, Cholesterol_levels==1 & Glucose_levels==1 & smoke==0 & alco==0 & active==1 & bp_category == "Normal")
+worst = subset(Dataset, Cholesterol_levels==3 & Glucose_levels==3 & smoke==1 & alco==1 & active==0 & (bp_category == "Elevated" | bp_category == "Hypertension Stage 1" | bp_category == "Hypertension Stage 2"))
+
+best_ill = subset(best, cardio==1)
+worst_ill = subset(worst, cardio==1)
+
+
+best_ill_perc = nrow(best_ill) / nrow(best) * 100
+worst_ill_perc = nrow(worst_ill) / nrow(worst) * 100
+perc_best = c(best_ill_perc, 100 - best_ill_perc)
+perc_best = data.frame(Freq = perc_best, Cardio = as.factor(c(1,0)))
+
+pie_b_tot = ggplot(perc_best, aes(x="", y=Freq, fill=Cardio)) +
+  
+  geom_bar(width = 1, stat = "identity", color="white") +
+  
+  coord_polar("y", start=0) +
+  
+  scale_fill_discrete(labels=c('Healthy', 'Ill')) +
+  
+  scale_fill_manual(labels=c('Healthy', 'Sick'),values=c("lightgreen","#ce9599")) +
+  
+  theme_bw() +
+  
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title=element_text(size=14, face="bold",hjust = 0.5)) + 
+  
+  ggtitle(("Best habits")) +
+  
+  geom_text(aes(label = round(Freq,2)), color="white", position = position_stack(vjust = 0.5)) + 
+  
+  theme(legend.title = element_blank())
+
+perc_worst=c(worst_ill_perc,100-worst_ill_perc)
+perc_worst=data.frame(Freq=perc_worst,Cardio=as.factor(c(1,0)))
+
+pie_w_tot = ggplot(perc_worst, aes(x="", y=Freq, fill=Cardio)) +
+  
+  geom_bar(width = 1, stat = "identity",color="white") + 
+  
+  coord_polar("y", start=0) +
+  
+  scale_fill_manual(labels=c('Healthy', 'Sick'),values=c("lightgreen","#ce9599")) +
+  
+  theme_bw() +
+  
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title=element_text(size=14, face="bold",hjust = 0.5)) + 
+  
+  ggtitle(("Worst habits")) +
+  
+  geom_text(aes(label = round(Freq,2)), color="white", position = position_stack(vjust = 0.5)) + 
+  
+  theme(legend.title = element_blank())
+
+
+bw_tot = ggarrange(pie_b_tot,pie_w_tot, common.legend = T, legend = "right")
+
+```
+
+##
+```{r , echo=FALSE}
+bw_tot
+```
+
+```{r  study panel about age, warning = FALSE, message=FALSE, echo=FALSE}
+# This is the highlight slide for the code 
+
+gender = Dataset$gender
+age_years = Dataset$age_years
+Dataset_2 = data.frame(gender, age_years)  
+
+for( i in 1:nrow(Dataset_2)){.                      # This is a loop for substitute the 0, 1 element in the column with
+  if (Dataset_2$gender[i] == 1){.                   # the corrispondent male, female value (is useful to have a good 
+    Dataset_2$gender[i] = "Female"                  # read of dataset)
+  }
+  else{
+    Dataset_2$gender[i] = "Male"
+  }
+}
+
+Dataset_mean = ddply(Dataset_2, "gender", summarise, mean1 = mean(age_years))    # table creation with the mean, using 
+Dataset_mean$gender = c("Female","Male")                                         # ddply function 
+
+Dataset_F = subset(Dataset, gender == 1)                          
+Dataset_M = subset(Dataset, gender == 2) 
+
+median_F = median(Dataset_F$age_years)                                           # calculus of the median and add it
+median_M = median(Dataset_M$age_years)                                           # in the table with the mean 
+
+Dataset_table = Dataset_mean
+Dataset_table$Median = c(median_F, median_M)
+colnames(Dataset_table) = c("Gender", "µ", "μe")
+
+Figure_1 = ggplot(Dataset_F,aes(x= age_years)) +                                 # creation of the female histogram
+                                       
+  geom_histogram(color = "black", fill ="pink") +
+  
+  xlim(37,65) +
+  
+  ylim(0,4000) +
+  
+  ylab("Female count") +
+  
+  theme_classic() +
+  
+  theme(axis.line.x = element_blank(),               
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  
+  annotate(geom = "table",                                                       # adding the table with mean and median
+           x = 40, y = 4000,                                                     # inside the graphic to have more 
+           label = Dataset_table[1,],                                            # explenation
+           fill = c("pink"))
+ 
+Figure_2 = ggplot(Dataset_M,aes(x= age_years)) +                                 # creation of the male histogram                                 
+  geom_histogram(color = "black", fill ="lightblue") +
+  
+  ylab("Male count") +
+  
+  xlim(37,65) +
+  
+  ylim(0,4000) +
+  
+  theme_classic() +
+  
+  theme(axis.title.x = element_blank()) +
+  
+  annotate(geom = "table", x = 40, y = 4000,                                     # adding the table with mean and median
+           label = Dataset_table[2,],                                            # inside the graphic to have more
+           fill = c("lightblue"))                                                # explenation
+  
+  
+Figure_3 = ggplot(Dataset_2, aes(x=age_years, color = gender)) +                 # creation of a density plot of the 
+                                                                                 # sample distribution per age 
+  geom_density(linewidth = 1, show.legend = FALSE) +
+  
+  scale_color_manual(values = c("pink","lightblue")) +
+  
+  xlim(37,65) +
+  
+  ylab("Relative frequency") +
+  
+  geom_segment(x = 52.94299, y = 0,                                              # adding two dashed lines to indicate 
+              xend = 52.94299, yend = 0.0538,                                    # the mean value
+              size = 0.4,
+              linetype = "dashed",
+              color = "grey") +
+  
+  geom_segment(x = 52.60064, y = 0,
+                xend = 52.60064, yend = 0.0484,
+                size = 0.4,
+                linetype = "dashed",
+                color = "grey") +
+  
+  annotate(geom="text",                                                          # add a text on the graphics 
+            x= 43.3, y=0.06, 
+            label="Average for females ",
+            color="black",
+            size = 3) +
+  
+  geom_segment(aes(x = 46.2, y = 0.0586,                                         # add an arrow inside the graphics that
+                   xend = 52.64299, yend = 0.0538),                              # point the mean value 
+               arrow = arrow(length = unit(0.3, "cm")),
+               color = "grey") +
+  
+  annotate(geom="text", 
+            x= 43, y=0.055, 
+            label="Average for males",
+            color="black",
+            size = 3) +
+  
+  geom_segment(aes(x = 45.7, y = 0.0535,
+                 xend = 52.30064, yend = 0.0485),
+             arrow = arrow(length = unit(0.3, "cm")),
+             color = "grey") +
+  
+  annotate(geom="label",                                                         # add a label around the text 
+            x= 56, y=0.056,                                                      # a sort of "etichetta"
+            label=" 52.94299 ",
+            color="black",
+            alpha = 0.1,
+            size = 2.5) +
+  
+  annotate(geom="label", 
+            x= 56, y=0.05, 
+            label=" 52.60064 ",
+            color="black",
+            alpha = 0.1,
+            size = 2.5) +
+  
+  theme_classic() +
+  
+  theme(axis.title.x = element_blank())
+ 
+age_freq = as.data.frame(table(Dataset$age_years))                               # creation of a frequency table per age
+age_freq = as.data.frame(t(age_freq))
+rownames(age_freq) = c("Age","Frequency")
+colnames(age_freq) = NULL
+
+x_table = ggtexttable(age_freq,
+                      theme = ttheme(("classic")))
+
+all_age = ggplot(Dataset_2, aes(x=age_years)) +                                 
+                                                                                
+  geom_bar(fill = "#B20000", color = "black", show.legend = FALSE, 
+           alpha = 0.8) + 
+# add a text on the graphics 
+  annotate(geom="text",                                                         
+            x= 33, y=700, 
+            label="Are these data important from\na statistical point of view?",
+            color="black",
+            size = 3.5) + 
+  
+  annotate(geom = "curve",
+           x = 35, y = 500,
+           xend = 32, yend = 130,
+           curvature = -0.2,
+           arrow = arrow(length = unit(0.3, "cm"))) +
+# add a label around the text # a sort of "etichetta"
+  annotate(geom="label",                                                        
+            x= 29.5, y=10,                                                      
+            label="               ",
+            color="black",
+            alpha = 0.1,
+            size = 3.5) +
+# add a text on the graphics  
+  annotate(geom="text",                                                          
+            x= 64, y=4000, 
+            label="[Figure 1.0]",
+            color="black",
+            size = 3.5) + 
+  
+  theme_classic()+ 
+
+  ylab("Count")+ 
+  
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) 
+
+
+x_table2 = image_read2("x_table.png")                                           
+                                                                                 
+Print_image = ggdraw() +                                                          
+                                                                                 
+  draw_image(x_table2, scale = 0.96)                                             
+
+Figure_all = ggdraw(plot_grid(plot_grid(all_age,Print_image,                     
+                                        ncol = 1,
+                                        rel_heights = c(1,0.1))))
+```
+
+##
+```{r, echo=FALSE, warning = FALSE, message = FALSE }
+Figure_all
+```
+
+##
+```{r , echo=FALSE, warning = FALSE, message = FALSE}
+Figure_3
+```
+
+##
+```{r , echo=FALSE, warning = FALSE, message = FALSE}
+
+panel = ggarrange(Figure_1,Figure_2,
+                  ncol = 1, nrow = 2)
+panel
+```
+
+
+
+```{r , include = FALSE, echo=FALSE, warning = FALSE, message = FALSE}
+#predictive model
+sample = sample(c(TRUE,FALSE), nrow(Dataset), replace = TRUE, prob = c(0.7, 0.3))
+train = Dataset[sample, ]
+test = Dataset[!sample, ]
+
+model = glm(cardio ~ active + weight + age + ap_hi + ap_lo + Cholesterol_levels, family = "binomial", data = train)
+summary(model)
+
+pscl::pR2(model)["McFadden"]
+caret::varImp(model)
+car::vif(model)
+
+validation_best = data.frame(active = 1, weight = 67, age = 17885, ap_hi = 110, ap_lo = 70, Cholesterol_levels = 1)
+validation_worst = data.frame(active = 0, weight = 71, age = 14965, ap_hi = 160, ap_lo = 120, Cholesterol_levels = 3)
+
+ext1 = predict(model, validation_best, type = "response")
+ext2 = predict(model, validation_worst, type = "response")
+ext1 = ext1 > 0.486
+ext2 = ext2 > 0.486
+
+predicted = predict(model, test, type = "response")
+predicted = as.array(predicted)
+res = as.data.frame(predicted >= 0.486)
+colnames(res)[colnames(res) == "predicted >= 0.486"] = "Ill/Not ill"
+res$"Ill/Not ill" = ifelse(res$"Ill/Not ill", 1, 0)
+
+res$"Ill/Not ill" = factor(res$"Ill/Not ill", levels = c(0, 1))
+test$cardio = factor(test$cardio, levels = c(0, 1))
+
+confusion_matrix = confusionMatrix(
+  res$"Ill/Not ill",
+  test$cardio,
+  positive = NULL,
+  dnn = c("Prediction", "Reference"),
+  prevalence = NULL,
+  mode = "sens_spec"
+)
+```
+
+
+
+
